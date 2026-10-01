@@ -35,6 +35,7 @@ body{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
 .me .pinbg{stroke-width:4.5}
 #zoom{position:absolute;left:10px;bottom:calc(14px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:6px}
 #zoom button{width:38px;height:38px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--text);font-size:20px;line-height:1}
+#guideBtn{position:absolute;left:10px;bottom:calc(60px + env(safe-area-inset-bottom));width:38px;height:38px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--text);font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10}
 #legend{position:absolute;left:58px;bottom:calc(20px + env(safe-area-inset-bottom));font-size:12px;color:var(--sub);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 10px}
 #bar{position:absolute;right:8px;top:10px;width:74px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:8px 4px;display:flex;flex-direction:column;gap:10px;box-shadow:0 4px 14px rgba(0,0,0,.12)}
 .pk{display:flex;flex-direction:column;align-items:center;gap:3px}
@@ -82,22 +83,13 @@ body{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
 #saveNote{font-size:13px;color:var(--accent);font-weight:700;margin:12px 0 10px;line-height:1.5}
 #enterBtn{width:100%;height:46px;font-size:16px}
 #demoNote{margin:12px 0 0;font-size:12px;color:#b36b00}
-#block{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:10px}
-#block .big{font-size:56px}
-#block h1{font-size:22px;margin:0}
-#block p{margin:0;color:var(--sub);line-height:1.6}
 #toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#333;color:#fff;padding:9px 14px;border-radius:999px;font-size:13px;z-index:80;opacity:0;pointer-events:none;transition:opacity .2s;max-width:86vw;text-align:center}
 #toast.on{opacity:1}
+.guide-banner{background:var(--mine);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px;color:var(--text);margin-bottom:10px;line-height:1.45}
 </style>
 </head>
 <body>
 <div id="strip">이 페이지는 모든 카풀 매칭이 끝나면 삭제돼요</div>
-
-<div id="block" hidden>
-  <div class="big">📱</div>
-  <h1>모바일 접속만 가능해요</h1>
-  <p>폰으로 다시 열어주세요.</p>
-</div>
 
 <div id="app">
   <div id="mapwrap" class="blur">
@@ -113,6 +105,7 @@ body{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
   </div>
   <aside id="bar" hidden></aside>
   <div id="zoom" hidden><button id="zin" aria-label="확대">＋</button><button id="zout" aria-label="축소">－</button></div>
+  <button id="guideBtn" aria-label="사용가이드" hidden>❓</button>
   <div id="legend" hidden>🚗 차주 &nbsp; 🙋 픽업 희망</div>
 </div>
 
@@ -122,6 +115,22 @@ body{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
   <div id="msgs"></div>
   <form id="chatForm" autocomplete="off"><input id="chatInput" maxlength="500" placeholder="메시지를 입력하세요" enterkeyhint="send"><button type="submit">보내기</button></form>
 </section>
+
+<!-- 사용가이드 모달 -->
+<div id="guideModal" class="overlay" hidden>
+  <div class="card">
+    <h2>📌 이용 가이드</h2>
+    <p class="hint">강릉 행사 카풀 조율 웹페이지에 오신 것을 환영해요!</p>
+    <div class="warn" style="margin-top:0">
+      🚗 <b>차주 아이콘</b>을 누르면 출발 시각과 탑승 가능 인원이 말풍선으로 뜹니다.<br><br>
+      🙋 <b>픽업 희망자 아이콘</b>을 누르면 전체 공개 채팅방이 열려 직접 조율할 수 있습니다.
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;margin:16px 0 14px;font-size:13px;cursor:pointer">
+      <input type="checkbox" id="dontShowAgain" style="width:16px;height:16px"> 이 창을 다시 보지 않기
+    </label>
+    <button id="guideCloseBtn" class="btn" style="width:100%">확인</button>
+  </div>
+</div>
 
 <div id="login" class="overlay" hidden>
   <div class="card">
@@ -145,14 +154,31 @@ body{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
 <script>
 /* ============ 설정값 (여기만 고치기) ============ */
 const CONFIG = {
-  SUPABASE_URL: "https://bgbbrwxmzsoyntgjdrva.supabase.co",        // 예: https://abcdxyz.supabase.co
-  SUPABASE_ANON_KEY: "sb_publishable_9pQq6EPm3Yu8VsUBRLcTJA_0dCCbylW",   // Supabase의 anon(또는 publishable) 공개 키
-  PC_BYPASS: "gn-open"     // PC 테스트용: 주소 끝에 ?pc=gn-open 을 붙이면 PC에서도 열림
+  SUPABASE_URL: "https://bgbbrwxmzsoyntgjdrva.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_9pQq6EPm3Yu8VsUBRLcTJA_0dCCbylW",
+  PC_BYPASS: "gn-open"
 };
 /* ======================================================= */
 
 const EMOJIS=["🍓","🐞","🦊","🦋","🐥","🐝","🌻","🐸","🌲","🥑","🦚","🐬","🫐","🍇","🦑","🐷","🌺","🦩","🍙","🍦","🐑","🐻","🍫","🦥","🐼","🦓","🐘","🦜","🧁","🦄"];
-const PINS=[{"id": "이도윤", "role": "driver", "x": 1003.5, "y": 654.7, "side": "l", "l1": "⏰ 토 10시경 · 🪑 +3명 이상", "l2": "📍 답십리동 · 장한평"}, {"id": "조우제", "role": "driver", "x": 932.1, "y": 877.0, "side": "b", "l1": "⏰ 조율 가능 · 🪑 +2명", "l2": "📍 강남구 논현동"}, {"id": "김동현", "role": "driver", "x": 596.4, "y": 966.8, "side": "r", "l1": "⏰ 토 오전 · 🪑 +2명", "l2": "📍 동작구 신대방동"}, {"id": "이승배", "role": "driver", "x": 648.3, "y": 703.1, "side": "b", "l1": "⏰ 일정에 맞춰 조절 · 🪑 +1명", "l2": "📍 마포 신촌"}, {"id": "이태경", "role": "driver", "x": 398.9, "y": 840.8, "side": "b", "l1": "⏰ 토 7-8시경 · 🪑 +3명 이상", "l2": "📍 양천구 신정동 등"}, {"id": "장병주", "role": "driver", "x": 957.4, "y": 514.4, "side": "r", "l1": "⏰ 토 9시 · 🪑 +2명", "l2": "📍 성북구 하월곡동"}, {"id": "최정학", "role": "driver", "x": 1133.0, "y": 541.6, "side": "b", "l1": "⏰ 토 8-9시 · 🪑 +1명", "l2": "📍 중랑구 상봉동"}, {"id": "Sandro", "role": "driver", "x": 943.5, "y": 568.6, "side": "b", "l1": "🪑 +1명", "l2": "📍 고려대"}, {"id": "백승찬", "role": "driver", "x": 538.9, "y": 975.7, "side": "b", "l1": "⏰ 토 9시경 · 🪑 +1명", "l2": "📍 구로디지털단지"}, {"id": "Justin", "role": "driver", "x": 480.8, "y": 1005.4, "side": "b", "l1": "⏰ 토 9시경 · 🪑 +2명", "l2": "📍 가산동"}, {"id": "김세형", "role": "driver", "x": 1022.0, "y": 569.3, "side": "r", "l1": null, "l2": null}, {"id": "한지수", "role": "pickup", "x": 1053.8, "y": 684.0, "side": "r", "place": "장한평"}, {"id": "한지수", "role": "pickup", "x": 1226.3, "y": 804.9, "side": "r", "place": "강동구청역"}, {"id": "한지수", "role": "pickup", "x": 1225.7, "y": 762.0, "side": "r", "place": "천호역"}, {"id": "안지용", "role": "pickup", "x": 932.1, "y": 811.5, "side": "r", "place": "압구정"}, {"id": "최준성", "role": "pickup", "x": 778.7, "y": 631.3, "side": "b", "place": "종로구 근처"}];
+const PINS=[
+  {"id": "이도윤", "role": "driver", "x": 1003.5, "y": 654.7, "side": "l", "l1": "⏰ 토요일 10시경 · 🪑 +3명 이상", "l2": "📍 답십리동, 장한평"},
+  {"id": "조우제", "role": "driver", "x": 932.1, "y": 877.0, "side": "b", "l1": "⏰ 조율 가능 · 🪑 +2명", "l2": "📍 강남구 논현동"},
+  {"id": "김동현", "role": "driver", "x": 596.4, "y": 966.8, "side": "r", "l1": "⏰ 토요일 오전 출발 가능 · 🪑 +2명", "l2": "📍 동작구 신대방동 (삼거리역 인근)"},
+  {"id": "이승배", "role": "driver", "x": 648.3, "y": 703.1, "side": "b", "l1": "⏰ 일정에 맞춰서 조절 가능 · 🪑 +1명", "l2": "📍 마포 신촌"},
+  {"id": "이태경", "role": "driver", "x": 398.9, "y": 840.8, "side": "b", "l1": "⏰ 토요일 오전 7-8시 경 · 🪑 +3명 이상", "l2": "📍 양천구 신정동 등 (관악·동작 일대)"},
+  {"id": "장병주", "role": "driver", "x": 957.4, "y": 514.4, "side": "r", "l1": "⏰ 토요일 오전 9시 · 🪑 +2명", "l2": "📍 성북구 하월곡동 (대상자에 따라 조율)"},
+  {"id": "최정학", "role": "driver", "x": 1133.0, "y": 541.6, "side": "b", "l1": "⏰ 토요일 오전 8~9시 · 🪑 +1명", "l2": "📍 중랑구 상봉동 (상봉역 베스트, 구리역 픽업도 가능)"},
+  {"id": "Sandro", "role": "driver", "x": 943.5, "y": 568.6, "side": "b", "l1": "🪑 +1명", "l2": "📍 고려대 (Korea University)"},
+  {"id": "백승찬", "role": "driver", "x": 538.9, "y": 975.7, "side": "b", "l1": "⏰ 토요일 오전 9시경 · 🪑 +1명", "l2": "📍 구로디지털단지 (역 근처)"},
+  {"id": "Justin", "role": "driver", "x": 480.8, "y": 1005.4, "side": "b", "l1": "⏰ 토요일 오전 9시경 · 🪑 +2명", "l2": "📍 가산동"},
+  {"id": "김세형", "role": "driver", "x": 1022.0, "y": 569.3, "side": "r", "l1": "📍 회기역 부근", "l2": null},
+  {"id": "한지수", "role": "pickup", "x": 1053.8, "y": 684.0, "side": "r", "place": "장한평"},
+  {"id": "한지수", "role": "pickup", "x": 1226.3, "y": 804.9, "side": "r", "place": "강동구청역"},
+  {"id": "한지수", "role": "pickup", "x": 1225.7, "y": 762.0, "side": "r", "place": "천호역"},
+  {"id": "안지용", "role": "pickup", "x": 932.1, "y": 811.5, "side": "r", "place": "압구정"},
+  {"id": "최준성", "role": "pickup", "x": 778.7, "y": 631.3, "side": "b", "place": "종로구 근처"}
+];
 const GUESTS=["지혜은","Fred","정선경"];
 const ROLE_LABEL={driver:"차주",pickup:"픽업 희망자",guest:"참여자"};
 const PICKUPS=PINS.filter(p=>p.role==="pickup").map(p=>p.id).filter((v,i,a)=>a.indexOf(v)===i);
@@ -164,9 +190,6 @@ const findMember=input=>MEMBERS.find(m=>norm(m.id)===norm(input));
 const $=id=>document.getElementById(id);
 const NS="http://www.w3.org/2000/svg";
 const el=(t,a,p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e};
-const qs=new URLSearchParams(location.search);
-const isMobileUA=/iPhone|iPod|Android.*Mobile|Mobile.*Android|Windows Phone/i.test(navigator.userAgent);
-const bypass=CONFIG.PC_BYPASS&&qs.get("pc")===CONFIG.PC_BYPASS;
 const LS={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
 function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("on");clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove("on"),2600)}
 
@@ -285,6 +308,14 @@ function renderMsgs(stick=true){
   const box=$("msgs");const atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<60;
   const list=messages.filter(m=>m.pickup===chatWith);
   box.textContent="";
+
+  if(chatWith==="최준성"){
+    const banner=document.createElement("div");
+    banner.className="guide-banner";
+    banner.textContent="ℹ️ 안내: 오토바이타고 종로구 어디든 갈 수 있습니다!";
+    box.appendChild(banner);
+  }
+
   if(!list.length){const e=document.createElement("div");e.className="empty";e.textContent="아직 대화가 없어요. 먼저 말을 걸어보세요!";box.appendChild(e)}
   list.forEach(m=>{
     const d=document.createElement("div");d.className="msg"+(m.author===me?" mine":"");
@@ -307,19 +338,19 @@ function openChat(id){
 }
 function closeChat(){chatWith=null;$("backdrop").classList.remove("on");$("sheet").classList.remove("on")}
 $("closeSheet").onclick=closeChat;$("backdrop").onclick=closeChat;
-function addMessage(m){
-  if(!m||messages.some(x=>x.id===m.id))return;
-  messages.push(m);messages.sort((a,b)=>a.created_at<b.created_at?-1:1);
-  renderBar();if(chatWith===m.pickup)renderMsgs(m.author===me);
-}
-$("chatForm").addEventListener("submit",async e=>{
-  e.preventDefault();
-  const inp=$("chatInput");const body=inp.value.trim();if(!body||!chatWith)return;
-  inp.value="";
-  try{const row=await backend.send(chatWith,me,body);addMessage(row)}catch(err){inp.value=body;toast("전송에 실패했어요. 잠시 후 다시 시도해주세요")}
-});
 
-/* ---------- 동기화 ---------- */
+// 가이드 모달 제어
+function showGuide(force=false){
+  if(!force&&LS.get("cm_hide_guide")==="true")return;
+  $("guideModal").hidden=false;
+}
+$("guideBtn").onclick=()=>showGuide(true);
+$("guideCloseBtn").onclick=()=>{
+  if($("dontShowAgain").checked)LS.set("cm_hide_guide","true");
+  $("guideModal").hidden=true;
+};
+
+/* ---------- 동기화 함수 ---------- */
 async function refreshAll(){
   try{
     const [c,m]=await Promise.all([backend.getClaims(),backend.getMessages()]);
@@ -330,7 +361,7 @@ async function refreshAll(){
   }catch(e){}
 }
 
-/* ---------- 접속 모달 ---------- */
+/* ---------- 로그인 및 이모지 선택 로직 ---------- */
 let pending=null,chosen=null;
 function buildGrid(){
   const g=$("grid");g.textContent="";
@@ -381,22 +412,37 @@ async function enter(id){
   await refreshAll();
   claims=await backend.getClaims();
   wrap.classList.remove("blur");
-  ["bar","zoom","legend"].forEach(x=>$(x).hidden=false);
+  ["bar","zoom","legend","guideBtn"].forEach(x=>$(x).hidden=false);
   renderPins();renderBar();centerMap();
   backend.subscribe(m=>addMessage(m),()=>refreshAll());
   setInterval(refreshAll,12000);
+  showGuide(false);
 }
+
+$("chatForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const inp=$("chatInput");const body=inp.value.trim();if(!body||!chatWith)return;
+  inp.value="";
+  try{const row=await backend.send(chatWith,me,body);addMessage(row)}catch(err){inp.value=body;toast("전송에 실패했어요. 잠시 후 다시 시도해주세요")}
+});
 
 /* ---------- 시작 ---------- */
 (async function init(){
-  if(!isMobileUA&&!bypass){$("block").hidden=false;$("app").hidden=true;return}
   centerMap();
   try{backend=CONFIG.SUPABASE_URL&&CONFIG.SUPABASE_ANON_KEY?await supaBackend():demoBackend()}
   catch(e){backend=demoBackend();toast(e.message)}
   if(backend.demo)$("demoNote").hidden=false;
   const saved=LS.get("cm_me");
   if(saved){
-    try{claims=await backend.getClaims();const m=findMember(saved);if(m&&claims[m.id]){await enter(m.id);return}}catch(e){}
+    try{
+      claims=await backend.getClaims();
+      const m=findMember(saved);
+      if(m&&claims[m.id]){
+        await enter(m.id);
+        showGuide(false);
+        return;
+      }
+    }catch(e){}
   }
   $("login").hidden=false;
 })();
