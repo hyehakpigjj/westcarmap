@@ -427,11 +427,45 @@ $("chatForm").addEventListener("submit",async e=>{
 });
 
 /* ---------- 시작 ---------- */
+/* ---------- 시작 ---------- */
 (async function init(){
   centerMap();
   try{backend=CONFIG.SUPABASE_URL&&CONFIG.SUPABASE_ANON_KEY?await supaBackend():demoBackend()}
   catch(e){backend=demoBackend();toast(e.message)}
   if(backend.demo)$("demoNote").hidden=false;
+
+  // 구경꾼 모드 (?viewer=true) 체크 및 24시간 제한 검증
+  const isViewer = qs.get("viewer") === "true";
+  if(isViewer){
+    const viewerKey = "cm_viewer_time";
+    const now = Date.now();
+    let viewerStart = parseInt(LS.get(viewerKey) || "0", 10);
+    
+    // 24시간(24 * 60 * 60 * 1000 밀리초) 경과 체크
+    if(!viewerStart || (now - viewerStart > 86400000)){
+      LS.set(viewerKey, now.toString()); // 새로 24시간 카운트 시작
+    }
+    
+    // 구경꾼 세션으로 진입
+    claims = await backend.getClaims();
+    wrap.classList.remove("blur");
+    ["bar","zoom","legend","guideBtn"].forEach(x=>$(x).hidden=false);
+    renderPins(); renderBar(); centerMap();
+    
+    // 채팅 입력창 숨기기 (구경꾼은 읽기만 가능)
+    $("chatForm").hidden = true;
+    const notice = document.createElement("div");
+    notice.className = "empty";
+    notice.style.padding = "10px";
+    notice.textContent = "👀 구경꾼 모드입니다 (채팅 참여 불가, 24시간 전용)";
+    $("sheet").appendChild(notice);
+
+    backend.subscribe(m=>addMessage(m),()=>refreshAll());
+    setInterval(refreshAll,12000);
+    toast("구경꾼 모드로 접속하셨어요!");
+    return;
+  }
+  
   const saved=LS.get("cm_me");
   if(saved){
     try{
