@@ -436,51 +436,6 @@ $("chatForm").addEventListener("submit",async e=>{
 (async function init(){
   centerMap();
 
-  // 1. 구경꾼 모드 (?viewer=true) 체크
-  const urlParams = new URLSearchParams(window.location.search);
-  const isViewer = urlParams.get("viewer") === "true";
-
-  // 2. 백엔드 연결 시도 (실패해도 앱이 멈추지 않게 처리)
-  try {
-    backend = CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY ? await supaBackend() : demoBackend();
-  } catch (e) {
-    backend = demoBackend();
-  }
-  if (backend.demo && $("demoNote")) $("demoNote").hidden = false;
-
-  // 3. 구경꾼 모드 실행 로직
-  if (isViewer) {
-    const viewerKey = "cm_viewer_time";
-    const now = Date.now();
-    let viewerStart = parseInt(LS.get(viewerKey) || "0", 10);
-    if (!viewerStart || (now - viewerStart > 86400000)) {
-      LS.set(viewerKey, now.toString());
-    }
-    try {
-      claims = await backend.getClaims();
-      messages = await backend.getMessages();
-    } catch (e) {}
-    
-    wrap.classList.remove("blur");
-    ["bar", "zoom", "legend", "guideBtn"].forEach(x => { if($(x)) $(x).hidden = false; });
-    renderPins(); renderBar(); centerMap();
-    
-    if ($("chatForm")) $("chatForm").hidden = true;
-    if (!$("viewerNotice")) {
-      const notice = document.createElement("div");
-      notice.id = "viewerNotice";
-      notice.className = "empty";
-      notice.style.padding = "10px";
-      notice.textContent = "👀 구경꾼 모드입니다 (채팅 참여 불가, 24시간 전용)";
-      if ($("sheet")) $("sheet").insertBefore(notice, $("msgs"));
-    }
-    try {
-      backend.subscribe(m => addMessage(m), () => refreshAll());
-    } catch (e) {}
-    setInterval(refreshAll, 12000);
-    toast("구경꾼 모드로 접속하셨어요!");
-    return;
-  }
 
   // 4. 기존 로그인된 세션이 있는지 확인
   const saved = LS.get("cm_me");
