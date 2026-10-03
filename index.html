@@ -435,65 +435,71 @@ $("chatForm").addEventListener("submit",async e=>{
 /* ---------- 시작 ---------- */
 (async function init(){
   centerMap();
-  try{backend=CONFIG.SUPABASE_URL&&CONFIG.SUPABASE_ANON_KEY?await supaBackend():demoBackend()}
-  catch(e){backend=demoBackend();toast(e.message)}
-  if(backend.demo)$("demoNote").hidden=false;
 
-  // 구경꾼 모드 (?viewer=true) 체크 및 24시간 제한 검증
+  // 1. 구경꾼 모드 (?viewer=true) 체크
   const urlParams = new URLSearchParams(window.location.search);
   const isViewer = urlParams.get("viewer") === "true";
-  if(isViewer){
+
+  // 2. 백엔드 연결 시도 (실패해도 앱이 멈추지 않게 처리)
+  try {
+    backend = CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY ? await supaBackend() : demoBackend();
+  } catch (e) {
+    backend = demoBackend();
+  }
+  if (backend.demo && $("demoNote")) $("demoNote").hidden = false;
+
+  // 3. 구경꾼 모드 실행 로직
+  if (isViewer) {
     const viewerKey = "cm_viewer_time";
     const now = Date.now();
     let viewerStart = parseInt(LS.get(viewerKey) || "0", 10);
-    
-    // 24시간(86400000 밀리초) 경과 체크
-    if(!viewerStart || (now - viewerStart > 86400000)){
-      LS.set(viewerKey, now.toString()); // 새로 24시간 카운트 시작
-      viewerStart = now;
+    if (!viewerStart || (now - viewerStart > 86400000)) {
+      LS.set(viewerKey, now.toString());
     }
-
-    // 만약 24시간이 지났다면(혹은 세션 만료 처리 필요 시) 안내 띄우기 가능
-    // 현재는 24시간 지나면 접속 시각이 갱신되도록 세팅되어 있습니다.
-
-    // 구경꾼 세션으로 진입
-    claims = await backend.getClaims();
-    messages = await backend.getMessages(); // 구경꾼도 최신 채팅 내역 로드
+    try {
+      claims = await backend.getClaims();
+      messages = await backend.getMessages();
+    } catch (e) {}
+    
     wrap.classList.remove("blur");
-    ["bar","zoom","legend","guideBtn"].forEach(x=>$(x).hidden=false);
+    ["bar", "zoom", "legend", "guideBtn"].forEach(x => { if($(x)) $(x).hidden = false; });
     renderPins(); renderBar(); centerMap();
     
-    // 채팅 입력창 숨기기 (구경꾼은 읽기만 가능)
-    $("chatForm").hidden = true;
-    if(!$("viewerNotice")){
+    if ($("chatForm")) $("chatForm").hidden = true;
+    if (!$("viewerNotice")) {
       const notice = document.createElement("div");
       notice.id = "viewerNotice";
       notice.className = "empty";
       notice.style.padding = "10px";
       notice.textContent = "👀 구경꾼 모드입니다 (채팅 참여 불가, 24시간 전용)";
-      $("sheet").insertBefore(notice, $("msgs"));
+      if ($("sheet")) $("sheet").insertBefore(notice, $("msgs"));
     }
-
-    backend.subscribe(m=>addMessage(m),()=>refreshAll());
-    
-    setInterval(refreshAll,12000);
+    try {
+      backend.subscribe(m => addMessage(m), () => refreshAll());
+    } catch (e) {}
+    setInterval(refreshAll, 12000);
     toast("구경꾼 모드로 접속하셨어요!");
     return;
   }
-  
-  const saved=LS.get("cm_me");
-  if(saved){
-    try{
-      claims=await backend.getClaims();
-      const m=findMember(saved);
-      if(m&&claims[m.id]){
+
+  // 4. 기존 로그인된 세션이 있는지 확인
+  const saved = LS.get("cm_me");
+  if (saved) {
+    try {
+      claims = await backend.getClaims();
+      const m = findMember(saved);
+      if (m && claims[m.id]) {
         await enter(m.id);
         showGuide(false);
         return;
       }
-    }catch(e){}
+    } catch (e) {}
   }
-  $("login").hidden=false;
+
+  // 5. 둘 다 아니라면 무조건 로그인 모달 강제 팝업!
+  if ($("login")) {
+    $("login").hidden = false;
+  }
 })();
 </script>
 </body>
