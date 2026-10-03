@@ -122,8 +122,9 @@ body{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
     <h2>📌 이용 가이드</h2>
     <p class="hint">강릉 행사 카풀 조율 웹페이지에 오신 것을 환영해요!</p>
     <div class="warn" style="margin-top:0">
-      🚗 <b>차주 아이콘</b>을 누르면 출발 시각과 탑승 가능 인원이 말풍선으로 뜹니다.<br><br>
-      🙋 <b>픽업 희망자 아이콘</b>을 누르면 전체 공개 채팅방이 열려 직접 조율할 수 있습니다.
+      🚗 <b>차주 아이콘</b>을 누르면 출발 시각, 탑승 가능 인원 및 <b>[✋ 태워주세요! 요청]</b> 버튼이 뜹니다.<br><br>
+      🙋 <b>픽업 희망자 아이콘</b>을 누르면 전체 공개 채팅방이 열려 직접 조율할 수 있습니다.<br><br>
+      ✋ 차주에게 요청을 보내면 전체 지도에 빨간 알림으로 표시됩니다!
     </div>
     <label style="display:flex;align-items:center;gap:8px;margin:16px 0 14px;font-size:13px;cursor:pointer">
       <input type="checkbox" id="dontShowAgain" style="width:16px;height:16px"> 이 창을 다시 보지 않기
@@ -252,6 +253,12 @@ function renderPins(){
     const claimed=claims[d.id];
     const em=el("text",{class:"pe",x:d.x,y:d.y+1},grp);em.textContent=claimed||(d.role==="driver"?"🚗":"🙋");
     if(claimed){const b=el("text",{class:"badge",x:d.x+14,y:d.y+13},grp);b.textContent=d.role==="driver"?"🚗":"🙋"}
+    
+    // ✋ 차주에게 들어온 손바닥 요청이 있다면 빨간 알림 배지 표시
+    if(d.role==="driver" && claims["req_"+d.id]){
+      const redBadge=el("text",{class:"badge",x:d.x+14,y:d.y-13,style:"font-size:14px"},grp);
+      redBadge.textContent="✋";
+    }
     let nx=d.x,ny=d.y+32,anc="middle",cy2=d.y+46,db="auto";
     if(d.side==="r"){nx=d.x+28;ny=d.y-4;anc="start";cy2=d.y+14;db="central"}
     if(d.side==="l"){nx=d.x-28;ny=d.y-4;anc="end";cy2=d.y+14;db="central"}
@@ -283,9 +290,63 @@ function onPin(d){
   const rect=el("rect",{class:"bb",x:cx-w/2,y:cy-h/2,width:w,height:h,rx:12},bg);
   bg.insertBefore(rect,bg.firstChild);
   const cover=el("rect",{x:d.x-7,y:above?tailY-3:tailY-1,width:14,height:4,fill:"var(--card)"},bg);
-  bg.appendChild(tail);bg.appendChild(cover);
-  ts.forEach((t,i)=>{bg.appendChild(t);t.setAttribute("x",cx-w/2+12);t.setAttribute("y",cy-h/2+7+9.5+i*19)});
-}
+      bg.appendChild(tail);bg.appendChild(cover);
+
+      // ✋ 만약 차주 핀이라면 말풍선 높이를 늘리고 손바닥(✋) 신청 버튼 추가
+      let btnH=0;
+      if(d.role==="driver"){
+        h+=32; 
+      }
+
+      const rect2=el("rect",{class:"bb",x:cx-w/2,y:cy-h/2,width:w,height:h,rx:12},bg);
+      bg.insertBefore(rect2,bg.firstChild);
+      // 기존에 생성했던 작은 rect(bb)는 덮어씌우기 위해 아래에서 교체됨
+      
+      ts.forEach((t,i)=>{bg.appendChild(t);t.setAttribute("x",cx-w/2+12);t.setAttribute("y",cy-h/2+7+9.5+i*19)});
+
+      if(d.role==="driver"){
+        const reqKey="req_"+d.id;
+        const hasReq=claims[reqKey]===me;
+        
+        const foreign=document.createElementNS(NS,"foreignObject");
+        foreign.setAttribute("x", cx - w/2 + 10);
+        foreign.setAttribute("y", cy + h/2 - 34);
+        foreign.setAttribute("width", w - 20);
+        foreign.setAttribute("height", 28);
+        
+        const btn=document.createElement("button");
+        btn.className="btn";
+        btn.style.width="100%";
+        btn.style.height="26px";
+        btn.style.fontSize="12px";
+        btn.style.padding="0";
+        btn.style.background=hasReq?"#e5484d":"var(--accent)";
+        btn.textContent=hasReq?"✋ 픽업 요청 취소하기":"✋ 나를 태워주세요! (요청)";
+        
+        btn.onclick=async(e)=>{
+          e.stopPropagation();
+          try{
+            if(hasReq){
+              delete claims[reqKey];
+            }else{
+              claims[reqKey]=me;
+            }
+            if(backend.demo){
+              LS.set("cm_demo_claims",JSON.stringify(claims));
+            }else{
+              await backend.claim(reqKey, me);
+            }
+            renderPins();
+            closeBubble();
+            toast(hasReq?"요청을 취소했어요":"차주에게 ✋ 손바닥 신호를 보냈어요!");
+          }catch(err){
+            toast("처리 중 오류가 발생했어요.");
+          }
+        };
+        foreign.appendChild(btn);
+        bg.appendChild(foreign);
+      }
+    }
 map.addEventListener("click",closeBubble);
 
 /* ---------- 우측 바 ---------- */
@@ -436,6 +497,13 @@ $("chatForm").addEventListener("submit",async e=>{
 (async function init(){
   centerMap();
 
+  // 백엔드 연결 초기화
+  try {
+    backend = CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY ? await supaBackend() : demoBackend();
+  } catch (e) {
+    backend = demoBackend();
+  }
+  if (backend.demo && $("demoNote")) $("demoNote").hidden = false;
 
   // 4. 기존 로그인된 세션이 있는지 확인
   const saved = LS.get("cm_me");
