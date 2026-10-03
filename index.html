@@ -465,8 +465,8 @@ async function confirmName(){
     $("grid").hidden=false;$("saveNote").hidden=false;buildGrid();
   }
   $("step2").hidden=false;
-}"step2").hidden=false;
-}
+} // 👈 함수를 닫는 올바른 괄호 하나만 남깁니다.
+
 $("nameForm").addEventListener("submit",e=>{e.preventDefault();confirmName()});
 $("nameInput").addEventListener("input",()=>{$("step2").hidden=true;$("nameErr").hidden=true;pending=null;chosen=null;$("enterBtn").disabled=true});
 $("enterBtn").onclick=async()=>{
