@@ -287,22 +287,25 @@ function onPin(d){
   if(cy-h/2<VB.y+6){above=false;cy=d.y+R+60+h/2}
   const tailY=above?cy+h/2:cy-h/2;
   const tail=el("path",{class:"btail",d:above?`M${d.x-8},${tailY-1} L${d.x},${tailY+9} L${d.x+8},${tailY-1} Z`:`M${d.x-8},${tailY+1} L${d.x},${tailY-9} L${d.x+8},${tailY+1} Z`},bg);
+  
+  // ✋ 만약 차주 핀이라면 버튼 공간(32px)만큼 높이(h)를 미리 늘려줍니다
+  if(d.role==="driver"){
+    h+=32;
+  }
+
   const rect=el("rect",{class:"bb",x:cx-w/2,y:cy-h/2,width:w,height:h,rx:12},bg);
   bg.insertBefore(rect,bg.firstChild);
   const cover=el("rect",{x:d.x-7,y:above?tailY-3:tailY-1,width:14,height:4,fill:"var(--card)"},bg);
-      bg.appendChild(tail);bg.appendChild(cover);
+  bg.appendChild(tail);bg.appendChild(cover);
 
-      // ✋ 만약 차주 핀이라면 말풍선 높이를 늘리고 손바닥(✋) 신청 버튼 추가
-      let btnH=0;
-      if(d.role==="driver"){
-        h+=32; 
-      }
-
-      const rect2=el("rect",{class:"bb",x:cx-w/2,y:cy-h/2,width:w,height:h,rx:12},bg);
-      bg.insertBefore(rect2,bg.firstChild);
-      // 기존에 생성했던 작은 rect(bb)는 덮어씌우기 위해 아래에서 교체됨
-      
-      ts.forEach((t,i)=>{bg.appendChild(t);t.setAttribute("x",cx-w/2+12);t.setAttribute("y",cy-h/2+7+9.5+i*19)});
+  // 텍스트들을 올바른 위치에 배치
+  ts.forEach((t,i)=>{
+    bg.appendChild(t);
+    t.setAttribute("x",cx-w/2+12);
+    // 차주인 경우 텍스트가 위로 살짝 올라가도록 벼락치기 보정
+    const yOffset = d.role==="driver" ? -14 : 0;
+    t.setAttribute("y",cy-h/2+7+9.5+i*19 + yOffset);
+  });
 
       if(d.role==="driver"){
         const reqKey="req_"+d.id;
