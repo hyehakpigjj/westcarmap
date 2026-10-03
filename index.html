@@ -446,7 +446,12 @@ async function confirmName(){
   $("step2").hidden=true;chosen=null;$("enterBtn").disabled=true;
   if(!m){pending=null;$("nameErr").hidden=false;return}
   $("nameErr").hidden=true;pending=m;
-  try{claims=await backend.getClaims()}catch(e){toast("서버 연결에 실패했어요. 잠시 후 다시 시도해주세요");return}
+  try{
+    claims=await backend.getClaims();
+  }catch(e){
+    // 서버 연결이 원활하지 않아도 로컬 데모 claims를 유지하거나 빈 객체로 진행
+    if(!claims) claims={};
+  }
   $("greet").textContent=`${ROLE_LABEL[m.role]} ${m.id}님, 안녕하세요!`;
   const mine=claims[m.id];
   if(mine){
@@ -457,6 +462,7 @@ async function confirmName(){
     $("grid").hidden=false;$("saveNote").hidden=false;buildGrid();
   }
   $("step2").hidden=false;
+}"step2").hidden=false;
 }
 $("nameForm").addEventListener("submit",e=>{e.preventDefault();confirmName()});
 $("nameInput").addEventListener("input",()=>{$("step2").hidden=true;$("nameErr").hidden=true;pending=null;chosen=null;$("enterBtn").disabled=true});
