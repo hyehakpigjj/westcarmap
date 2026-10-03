@@ -122,9 +122,13 @@ body{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
     <h2>📌 이용 가이드</h2>
     <p class="hint">강릉 행사 카풀 조율 웹페이지에 오신 것을 환영해요!</p>
     <div class="warn" style="margin-top:0">
-      🚗 <b>차주 아이콘</b>을 누르면 출발 시각, 탑승 가능 인원 및 <b>[✋ 태워주세요! 요청]</b> 버튼이 뜹니다.<br><br>
-      🙋 <b>픽업 희망자 아이콘</b>을 누르면 전체 공개 채팅방이 열려 직접 조율할 수 있습니다.<br><br>
-      ✋ 차주에게 요청을 보내면 전체 지도에 빨간 알림으로 표시됩니다!
+      🚗 <b>차주이신가요?</b><br>
+      • 픽업 희망자 아이콘을 누르면 대화할 수 있어요.<br>
+      • 나에게 온 픽업 요청(✋)을 확인하고 먼저 말을 걸어보세요!<br>
+      • 꼭 요청 전이라도 먼저 말을 걸 수 있어요.<br><br>
+      🙋 <b>픽업 희망자이신가요?</b><br>
+      • 차주 아이콘을 누르면 상세 정보를 볼 수 있어요.<br>
+      • 차주에게 픽업 요청(✋)을 보내거나 채팅으로 조율해 보세요.
     </div>
     <label style="display:flex;align-items:center;gap:8px;margin:16px 0 14px;font-size:13px;cursor:pointer">
       <input type="checkbox" id="dontShowAgain" style="width:16px;height:16px"> 이 창을 다시 보지 않기
@@ -281,30 +285,28 @@ function onPin(d){
   const lines=[d.l1,d.l2].filter(Boolean);
   const ts=lines.map(s=>{const t=el("text",{class:"bt",x:0,y:0},bg);t.textContent=s;return t});
   let w=0;ts.forEach(t=>{w=Math.max(w,t.getComputedTextLength())});
-  w+=24;const h=lines.length*19+14;
+  w+=24;
+  
+  // 기본 높이에 차주인 경우 버튼 공간(+38px) 추가
+  let h = lines.length * 19 + 14;
+  if(d.role === "driver") h += 38;
+
   let cx=Math.min(Math.max(d.x,VB.x+w/2+8),VB.x+VB.w-w/2-8);
   let above=true,cy=d.y-R-12-h/2;
   if(cy-h/2<VB.y+6){above=false;cy=d.y+R+60+h/2}
   const tailY=above?cy+h/2:cy-h/2;
   const tail=el("path",{class:"btail",d:above?`M${d.x-8},${tailY-1} L${d.x},${tailY+9} L${d.x+8},${tailY-1} Z`:`M${d.x-8},${tailY+1} L${d.x},${tailY-9} L${d.x+8},${tailY+1} Z`},bg);
   
-  // ✋ 만약 차주 핀이라면 버튼 공간(32px)만큼 높이(h)를 미리 늘려줍니다
-  if(d.role==="driver"){
-    h+=32;
-  }
-
   const rect=el("rect",{class:"bb",x:cx-w/2,y:cy-h/2,width:w,height:h,rx:12},bg);
   bg.insertBefore(rect,bg.firstChild);
   const cover=el("rect",{x:d.x-7,y:above?tailY-3:tailY-1,width:14,height:4,fill:"var(--card)"},bg);
   bg.appendChild(tail);bg.appendChild(cover);
 
-  // 텍스트들을 올바른 위치에 배치
+  // 텍스트 위치 정상 배치 (차주든 아니든 깔끔하게 상단 정렬)
   ts.forEach((t,i)=>{
     bg.appendChild(t);
-    t.setAttribute("x",cx-w/2+12);
-    // 차주인 경우 텍스트가 위로 살짝 올라가도록 벼락치기 보정
-    const yOffset = d.role==="driver" ? -14 : 0;
-    t.setAttribute("y",cy-h/2+7+9.5+i*19 + yOffset);
+    t.setAttribute("x", cx - w/2 + 12);
+    t.setAttribute("y", cy - h/2 + 16 + (i * 19));
   });
 
       if(d.role==="driver"){
