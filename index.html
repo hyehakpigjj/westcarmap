@@ -106,7 +106,9 @@ body{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
   <aside id="bar" hidden></aside>
   <div id="zoom" hidden><button id="zin" aria-label="확대">＋</button><button id="zout" aria-label="축소">－</button></div>
   <button id="guideBtn" aria-label="사용가이드" hidden>❓</button>
-  <div id="legend" hidden>🚗 차주 &nbsp; 🙋 픽업 희망</div>
+  <div id="legend" hidden>
+  <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#4a90d9;margin-right:3px;vertical-align:middle"></span>🚗 차주 &nbsp;&nbsp; 
+  <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#e8743b;margin-right:3px;vertical-align:middle"></span>🙋 픽업 희망
 </div>
 
 <div id="backdrop"></div>
@@ -125,7 +127,7 @@ body{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
       🚗 <b>차주이신가요?</b><br>
       • 픽업 희망자 아이콘을 누르면 대화할 수 있어요.<br>
       • 나에게 온 픽업 요청(✋)을 확인하고 먼저 말을 걸어보세요!<br>
-      • 꼭 요청 전이라도 먼저 말을 걸 수 있어요.<br><br>
+      • 요청 전이라도 먼저 말을 걸 수 있어요.<br><br>
       🙋 <b>픽업 희망자이신가요?</b><br>
       • 차주 아이콘을 누르면 상세 정보를 볼 수 있어요.<br>
       • 차주에게 픽업 요청(✋)을 보내거나 채팅으로 조율해 보세요.
@@ -283,11 +285,18 @@ function onPin(d){
   wrap.scrollTo({left:px-(wrap.clientWidth-90)/2,top:py-wrap.clientHeight*0.6,behavior:'smooth'});
   const bg=el("g",{},$("bubble"));
   const lines=[d.l1,d.l2].filter(Boolean);
+  
+  // ✋ 만약 이 차주에게 들어온 픽업 요청이 있다면 말풍선 내용에 요청자 이름 추가
+  const reqAuthor = claims["req_" + d.id];
+  if(reqAuthor){
+    lines.push(`🙋 픽업 요청자: ${reqAuthor}님`);
+  }
+
   const ts=lines.map(s=>{const t=el("text",{class:"bt",x:0,y:0},bg);t.textContent=s;return t});
   let w=0;ts.forEach(t=>{w=Math.max(w,t.getComputedTextLength())});
   w+=24;
   
-  // 기본 높이에 차주인 경우 버튼 공간(+38px) 추가
+  /// 줄 개수(lines.length)에 따라 높이를 자동 계산하고, 차주라면 버튼 공간(+38px) 추가
   let h = lines.length * 19 + 14;
   if(d.role === "driver") h += 38;
 
@@ -341,6 +350,25 @@ function onPin(d){
             }else{
               await backend.claim(reqKey, me);
             }
+
+            // ✋ 새로 추가된 기획: 픽업 요청을 보냈을 때 채팅창에 자동으로 기록 남기기
+            if(!hasReq){
+              try{
+                // 이 차주 혹은 현재 본인과 연결된 채팅방(또는 차주 이름으로 된 방 등)에 메시지 전송
+                // 보통 우측 바에 있는 픽업 희망자 채널 기준이므로, 현재 누른 차주 이름(d.id)으로 메시지를 보냅니다.
+                const logBody = `${me}님이 ${d.id}님에게 카풀 픽업을 요청했어요! ✋`;
+                if(backend.demo){
+                  const m = JSON.parse(LS.get("cm_demo_msgs") || "[]");
+                  const row = {id:"d"+Date.now()+Math.random().toString(36).slice(2,6), pickup:d.id, author:me, body:logBody, created_at:new Date().toISOString()};
+                  m.push(row);
+                  LS.set("cm_demo_msgs", JSON.stringify(m));
+                  messages = m;
+                }else{
+                  await backend.send(d.id, me, logBody);
+                }
+              }catch(chatErr){}
+            }
+
             renderPins();
             closeBubble();
             toast(hasReq?"요청을 취소했어요":"차주에게 ✋ 손바닥 신호를 보냈어요!");
