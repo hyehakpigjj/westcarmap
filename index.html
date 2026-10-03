@@ -339,6 +339,12 @@ function openChat(id){
 function closeChat(){chatWith=null;$("backdrop").classList.remove("on");$("sheet").classList.remove("on")}
 $("closeSheet").onclick=closeChat;$("backdrop").onclick=closeChat;
 
+function addMessage(m){
+  messages.push(m);
+  if(chatWith===m.pickup) renderMsgs(false);
+  renderBar();
+}
+
 // 가이드 모달 제어
 function showGuide(force=false){
   if(!force&&LS.get("cm_hide_guide")==="true")return;
@@ -434,7 +440,8 @@ $("chatForm").addEventListener("submit",async e=>{
   if(backend.demo)$("demoNote").hidden=false;
 
   // 구경꾼 모드 (?viewer=true) 체크 및 24시간 제한 검증
-  const isViewer = qs.get("viewer") === "true";
+  const urlParams = new URLSearchParams(window.location.search);
+  const isViewer = urlParams.get("viewer") === "true";
   if(isViewer){
     const viewerKey = "cm_viewer_time";
     const now = Date.now();
@@ -467,11 +474,7 @@ $("chatForm").addEventListener("submit",async e=>{
       $("sheet").insertBefore(notice, $("msgs"));
     }
 
-    backend.subscribe(m=>{
-      messages.push(m);
-      if(chatWith) renderMsgs(false);
-      renderBar();
-    },()=>refreshAll());
+    backend.subscribe(m=>addMessage(m),()=>refreshAll());
     
     setInterval(refreshAll,12000);
     toast("구경꾼 모드로 접속하셨어요!");
